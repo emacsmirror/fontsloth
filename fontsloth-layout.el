@@ -125,8 +125,8 @@
   (output nil :type 'vector)
   (glyphs nil :type 'vector)
   (line-metrics nil :type 'list)
-  (linebreaker (fontsloth-layout-linebreaker-create)
-               :type 'fontsloth-layout-linebreaker)
+  (linebreaker (fontsloth-layout-linebreak-er-create)
+               :type 'fontsloth-layout-linebreak-er)
   (linebreak-prev fontsloth-layout-linebreak-none
                   :type 'fontsloth-layout-linebreak-data)
   (linebreak-pos 0.0 :type 'number)
@@ -187,7 +187,7 @@
         (fontsloth-layout-current-px layout) 0.0
         (fontsloth-layout-start-pos layout) 0.0
         (fontsloth-layout-height layout) 0.0)
-  (fontsloth-layout-linebreaker-reset
+  (fontsloth-layout-linebreak-er-reset
    (fontsloth-layout-linebreaker layout)))
 
 (defsubst fontsloth-layout-current-height (layout)
@@ -229,7 +229,7 @@
              (pcase-let*
                  ((linebreak
                    (fontsloth-layout-linebreak-data-mask
-                    (fontsloth-layout-linebreaker-next linebreaker character)
+                    (fontsloth-layout-linebreak-er-next linebreaker character)
                     wrap-mask))
                   (glyph-id (fontsloth-font-glyph-id font character))
                   (char-data

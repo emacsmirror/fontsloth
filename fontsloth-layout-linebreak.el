@@ -101,15 +101,15 @@ HAS-WIDTH? t if has width"
                  (fontsloth-layout-linebreak-data-bits lb-data2))))
 
 (cl-defstruct
-    (fontsloth-layout-linebreaker
-     (:constructor fontsloth-layout-linebreaker-create)
+    (fontsloth-layout-linebreak-er
+     (:constructor fontsloth-layout-linebreak-er-create)
      (:copier nil))
   "Container for linebreaker state."
   (state 0 :type 'fixed))
 
-(defsubst fontsloth-layout-linebreaker-reset (lbreaker)
+(defsubst fontsloth-layout-linebreak-er-reset (lbreaker)
   "Reset the linebreaker LBREAKER."
-  (setf (fontsloth-layout-linebreaker-state lbreaker) 0))
+  (setf (fontsloth-layout-linebreak-er-state lbreaker) 0))
 
 (defun fontsloth-layout-linebreak--u8->i8 (u8)
   "Interpret an unsigned byte U8 as a signed byte."
@@ -117,7 +117,7 @@ HAS-WIDTH? t if has width"
          (wrap (+ max max)))
     (if (>= u8 max) (- u8 wrap) u8)))
 
-(defun fontsloth-layout-linebreaker-next (lbreaker code-point)
+(defun fontsloth-layout-linebreak-er-next (lbreaker code-point)
   "Step the linebreaker LBREAKER state machine forward with CODE-POINT."
   (let* ((lb (cond
               ((> #x800 code-point)
@@ -133,16 +133,16 @@ HAS-WIDTH? t if has width"
                                     (+ (* mid #x40)
                                        (logand (ash code-point -6) #x3f)))))
                    (aref fontsloth-layout-lb-tables-4-leaves leaf)))))
-         (i (+ lb (* (fontsloth-layout-linebreaker-state lbreaker)
+         (i (+ lb (* (fontsloth-layout-linebreak-er-state lbreaker)
                      fontsloth-layout-lb-tables-n-linebreak-categories)))
          (new (aref fontsloth-layout-lb-tables-state-machine i)))
     (if (> 0 (fontsloth-layout-linebreak--u8->i8 new))
-        (progn (setf (fontsloth-layout-linebreaker-state lbreaker)
+        (progn (setf (fontsloth-layout-linebreak-er-state lbreaker)
                      (logand new #x3f))
                (if (<= #xc0 new)
                    fontsloth-layout-linebreak-hard
                  fontsloth-layout-linebreak-soft))
-      (progn (setf (fontsloth-layout-linebreaker-state lbreaker) new)
+      (progn (setf (fontsloth-layout-linebreak-er-state lbreaker) new)
              fontsloth-layout-linebreak-none))))
 
 (cl-defstruct
