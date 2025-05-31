@@ -241,7 +241,7 @@ LENGTH the expected length"
 PIXEL vector of pixel bytes
 WIDTH the glyph outline width
 HEIGHT the glyph outline height
-FORMAT optional 'ppm, 'pgm, or 'pbm, default 'pgm"
+FORMAT optional \\='ppm, \\='pgm, or \\='pbm, default \\='pgm"
   (let ((formats '((ppm . "P6
 ")
                    (pgm . "P5

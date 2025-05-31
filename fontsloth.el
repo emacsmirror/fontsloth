@@ -182,15 +182,15 @@ Currently only file path sources are accepted.
 Loading from font collections is not yet implemented.
 SOURCE the font source
 FONT-SETTINGS the `fontsloth-font-settings' to use
-CACHE t to use cache, 'bypass to bypass cache, 'reload to force update
+CACHE t to use cache, \\='bypass to bypass cache, \\='reload to force update
 cache"
   (unless (and (stringp source) (f-file-p source))
     (error "Source %s with type %s currently unsupported"
            source (type-of source)))
   (cl-case cache
-    ('bypass (fontsloth--load-font source font-settings))
-    ('reload (pcache-invalidate fontsloth-cache source)
-             (fontsloth--load-font-cached source font-settings))
+    (bypass (fontsloth--load-font source font-settings))
+    (reload (pcache-invalidate fontsloth-cache source)
+            (fontsloth--load-font-cached source font-settings))
     (t (fontsloth--load-font-cached source font-settings))))
 
 (defsubst fontsloth-font-scale-factor (font px)
