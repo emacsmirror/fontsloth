@@ -625,16 +625,22 @@ TABLE-PROPS-LIST the list of table props to index"
       (puthash (alist-get 'tag tprops) tprops m))
     m))
 
+(defun fontsloth-otf--read-font-bytes (path)
+  "Read file at PATH as a unibyte string of raw bytes."
+  (let ((file-name-handler-alist nil)
+        (auto-mode-alist nil))
+    (with-temp-buffer
+      (set-buffer-multibyte nil)
+      (insert-file-contents-literally path)
+      (buffer-string))))
+
 (cl-defun fontsloth-otf-load-font (ttf-path &key (coll-index 0))
   "Read `ttf-path' into an abstract representation suitable for rendering.
 TTF-PATH the path to a ttf file
 :COLL-INDEX the collection index if this file is a collection, default 0"
   (ignore coll-index)
   (setq fontsloth-otf--current-tables (make-hash-table :test 'equal))
-  (setq fontsloth-otf--current-font-bytes (with-temp-buffer
-                              (set-buffer-multibyte nil)
-                              (insert-file-contents-literally ttf-path)
-                              (buffer-string)))
+  (setq fontsloth-otf--current-font-bytes (fontsloth-otf--read-font-bytes ttf-path))
   (let* ((header+table-props
           (bindat-unpack fontsloth-otf--tables-spec fontsloth-otf--current-font-bytes))
          ;; sfnt-ver to check if there is either TrueType or CFF data
