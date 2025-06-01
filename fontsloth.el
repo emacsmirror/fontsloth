@@ -144,7 +144,7 @@ LINE-GAP the line gap"
          (glyph-count (fontsloth-otf-num-glyphs))
          (glyphs (let ((glyphs (make-vector glyph-count nil)))
                    (cl-loop for glyph-id being the hash-values of char-to-glyph
-                            collect
+                            do
                             (unless (aref glyphs glyph-id)
                               (aset glyphs glyph-id
                                     (fontsloth-glyph-create
