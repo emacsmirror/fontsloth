@@ -121,10 +121,14 @@ LINE-GAP the line gap"
   (collection-index 0 :type 'fixed)
   (scale 40.0 :type 'number))
 
+(defconst fontsloth--font-data-version 1
+  "For cache invalidation if fontsloth-font changes.")
+
 (cl-defstruct (fontsloth-font
                (:constructor nil)
                (:copier nil))
   "Describe a font."
+  (-data-version fontsloth--font-data-version :type 'integer :read-only t)
   (name nil :type 'string :read-only t)
   (units-per-em 1000 :type 'number :read-only t)
   (glyphs nil :type 'vector :read-only t)
@@ -133,7 +137,8 @@ LINE-GAP the line gap"
   (horizontal-kern nil :type 'hash-table :read-only t)
   (vertical-line-metrics nil :type 'fontsloth-line-metrics :read-only t)
   (settings (fontsloth-font-settings-create) :type 'fontsloth-font-settings
-            :read-only t))
+            :read-only t)
+  (hash 0 :type 'fixed :read-only t))
 
 (defun fontsloth--load-font (path font-settings)
   "Load a font given file path PATH and settings FONT-SETTINGS."
@@ -160,19 +165,27 @@ LINE-GAP the line gap"
          (horizontal-kern (fontsloth-otf-find-hkern-mappings))
          (vertical-line-metrics nil) ; TODO: vertical line metrics
          )
-    (record 'fontsloth-font name units-per-em glyphs char-to-glyph
-            horizontal-line-metrics horizontal-kern
-            vertical-line-metrics font-settings)))
+    (record 'fontsloth-font fontsloth--font-data-version name units-per-em
+            glyphs char-to-glyph horizontal-line-metrics horizontal-kern
+            vertical-line-metrics font-settings
+            (secure-hash 'sha1 fontsloth-otf--current-font-bytes))))
 
 (defun fontsloth--load-font-cached (path font-settings)
   "Retrieve a font from cache and if not load it with PATH and FONT-SETTINGS."
   (unless fontsloth-cache
     (fontsloth-cache-init))
-  (if-let ((font (pcache-get fontsloth-cache path)))
-      font
-    (let ((font (fontsloth--load-font path font-settings)))
-      (pcache-put fontsloth-cache path font)
-      font)))
+  (cl-flet ((load-font ()
+              (let ((font (fontsloth--load-font path font-settings)))
+                (pcache-put fontsloth-cache path font)
+                font)))
+    (if-let ((cached-font (pcache-get fontsloth-cache path)))
+        (if (eq (aref cached-font 1) fontsloth--font-data-version)
+            cached-font
+          (message
+           "fontsloth: mismatched version, invalidating cache for %s" path)
+          (pcache-invalidate fontsloth-cache path)
+          (load-font))
+      (load-font))))
 
 (cl-defun fontsloth-load-font
     (source &key (font-settings (fontsloth-font-settings-create))

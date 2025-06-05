@@ -54,15 +54,13 @@
 (require 'fontsloth)
 (require 'fontsloth-layout-linebreak)
 
-;; FIXME: the fontdue author has found a better way to index glyphs
-;; this is awkward and it would be good to do likewise
 (cl-defstruct (fontsloth-layout-glyph-raster-config
                (:constructor fontsloth-layout-glyph-raster-config-create)
                (:copier nil))
   "This is a key for indexing a rastered glyph."
   (glyph-id 0 :type 'fixed)
   (px 12.0 :type 'number)
-  (font-index 0 :type 'fixed))
+  (font-hash 0 :type 'fixed))
 
 (cl-defstruct (fontsloth-layout-glyph-position
                (:constructor fontsloth-layout-glyph-position-create)
@@ -210,6 +208,7 @@
                            text px font-index user-data horizontal-kern?)
                 style)
                (font (elt fonts font-index))
+               (font-hash (fontsloth-font-hash font))
                (metrics
                 (fontsloth-scale-horizontal-line-metrics font px))
                ((cl-struct fontsloth-line-metrics ascent new-line-size) metrics)
@@ -298,7 +297,7 @@
                      :key (fontsloth-layout-glyph-raster-config-create
                            :glyph-id glyph-id
                            :px px
-                           :font-index font-index)
+                           :font-hash font-hash)
                      :parent character
                      :x (floor (+ (fontsloth-layout-current-pos layout)
                                   xmin kern))
