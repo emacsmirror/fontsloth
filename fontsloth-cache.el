@@ -77,8 +77,23 @@ A nil value or zero indicates to save immediately."
           fontsloth-cache--pcache-prefix
           (replace-regexp-in-string "[/\\.]" "_" file-path)))
 
+(defvar fontsloth-cache--initialized? nil
+  "Nil if fontsloth cache repositories are not yet loaded.")
+
+(defun fontsloth-cache--load-repos ()
+  "Load any pcache repos whose names start with `fontsloth-cache--pcache-prefix'."
+  (unless fontsloth-cache--initialized?
+    (when-let ((pcache-files (and (file-directory-p pcache-directory)
+                                  (directory-files pcache-directory))))
+      (cl-loop for f in pcache-files
+               when (string-prefix-p fontsloth-cache--pcache-prefix f)
+               do (make-instance 'fontsloth-cache-pcache
+                                 :object-name f)))
+    (setq fontsloth-cache--initialized? t)))
+
 (defun fontsloth-cache-put (file-path font)
   "Put `fontsloth-font' FONT in cache using lookup key FILE-PATH."
+  (fontsloth-cache--load-repos)
   (let* ((repo-name (fontsloth-cache--pcache-path-name file-path))
          (cache (or (gethash repo-name *pcache-repositories*)
                     (make-instance 'fontsloth-cache-pcache
@@ -94,12 +109,14 @@ A nil value or zero indicates to save immediately."
   "Retrieve a cached `fontsloth-font' corresponding to FILE-PATH, if any.
 
 The value is nil if no entry is found."
+  (fontsloth-cache--load-repos)
   (when-let* ((repo-name (fontsloth-cache--pcache-path-name file-path))
               (cache (gethash repo-name *pcache-repositories*)))
     (pcache-get cache file-path)))
 
 (defun fontsloth-cache-invalidate (file-path)
   "Invalidate a single font corresponding to FILE-PATH."
+  (fontsloth-cache--load-repos)
   (when-let* ((repo-name (fontsloth-cache--pcache-path-name file-path))
               (cache (gethash repo-name *pcache-repositories*)))
     (pcache-invalidate cache file-path)
@@ -107,6 +124,7 @@ The value is nil if no entry is found."
 
 (defun fontsloth-cache-clear ()
   "Clear all fontsloth related repositories from pcache."
+  (fontsloth-cache--load-repos)
   (cl-loop for k being the hash-keys of *pcache-repositories*
            when (string-prefix-p fontsloth-cache--pcache-prefix k)
            do (pcache-destroy-repository k)))
