@@ -126,21 +126,21 @@ the seconds if you load more than 10 or so fonts at a time*.
 #+begin_src emacs-lisp
 ;; it will take longer, but won’t end up in cache
 ;; this is useful if you just want to try it out and see if it works
-(fontsloth-load-font my/font :cache 'bypass)
+(fontsloth-load-font path-to-font :cache 'bypass)
 #+end_src
 ** Force reload a font
 #+begin_src emacs-lisp
 ;; this reloads the font and then stores the result in cache
-(fontsloth-load-font my/font :cache 'reload)
+(fontsloth-load-font path-to-font :cache 'reload)
 #+end_src
 ** Invalidate a cache entry
 #+begin_src emacs-lisp
 ;; this removes a single font entry from cache
-(pcache-invalidate fontsloth-cache my/font)
+(fontsloth-cache-invalidate path-to-font)
 #+end_src
 ** Clear the cache
 #+begin_src emacs-lisp
-(pcache-clear fontsloth-cache)
+(fontsloth-cache-clear)
 #+end_src
 * Installation
 ** MELPA

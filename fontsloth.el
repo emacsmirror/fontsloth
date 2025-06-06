@@ -172,18 +172,16 @@ LINE-GAP the line gap"
 
 (defun fontsloth--load-font-cached (path font-settings)
   "Retrieve a font from cache and if not load it with PATH and FONT-SETTINGS."
-  (unless fontsloth-cache
-    (fontsloth-cache-init))
   (cl-flet ((load-font ()
               (let ((font (fontsloth--load-font path font-settings)))
-                (pcache-put fontsloth-cache path font)
+                (fontsloth-cache-put path font)
                 font)))
-    (if-let ((cached-font (pcache-get fontsloth-cache path)))
+    (if-let ((cached-font (fontsloth-cache-get path)))
         (if (eq (aref cached-font 1) fontsloth--font-data-version)
             cached-font
           (message
            "fontsloth: mismatched version, invalidating cache for %s" path)
-          (pcache-invalidate fontsloth-cache path)
+          (fontsloth-cache-invalidate path)
           (load-font))
       (load-font))))
 
@@ -202,7 +200,7 @@ cache"
            source (type-of source)))
   (cl-case cache
     (bypass (fontsloth--load-font source font-settings))
-    (reload (pcache-invalidate fontsloth-cache source)
+    (reload (fontsloth-cache-invalidate source)
             (fontsloth--load-font-cached source font-settings))
     (t (fontsloth--load-font-cached source font-settings))))
 

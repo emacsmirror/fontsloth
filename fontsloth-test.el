@@ -47,6 +47,7 @@
 (require 'f)
 (require 'fontsloth)
 
+;;; TODO: don't hardcode this location
 (defvar fontsloth-test--font "/usr/share/fonts/TTF/fontawesome.ttf")
 (defvar fontsloth-test--expected-pixmap
   [0 0 0 0 29 81 105 101 69 14 0 0 0 0 0 1
@@ -72,17 +73,15 @@
 (defun fontsloth-test--pre-fixture (body)
   "A fixture to run before BODY."
   (unwind-protect
-      (progn (unless fontsloth-cache
-               (fontsloth-cache-init))
-             (setq fontsloth-test--post-invalidate?
-                   (not (pcache-has fontsloth-cache fontsloth-test--font)))
+      (progn (setq fontsloth-test--post-invalidate?
+                   (not (fontsloth-cache-get fontsloth-test--font)))
              (funcall body))))
 
 (defun fontsloth-test--post-fixture (body)
   "A fixture to run after BODY."
   (unwind-protect (funcall body)
     (when fontsloth-test--post-invalidate?
-      (pcache-invalidate fontsloth-cache fontsloth-test--font))))
+      (fontsloth-cache-invalidate fontsloth-test--font))))
 
 (ert-deftest fontsloth-test-font-load-rasterize ()
   "Test loading a font and then rasterizing a glyph."
