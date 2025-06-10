@@ -80,12 +80,13 @@ A nil value or zero indicates to save immediately."
 (defvar fontsloth-cache--initialized? nil
   "Nil if fontsloth cache repositories are not yet loaded.")
 
-(defun fontsloth-cache--load-repos ()
+(defun fontsloth-cache--load-repos (&optional force?)
   "Load any pcache repos whose names start with `fontsloth-cache--pcache-prefix'."
-  (unless fontsloth-cache--initialized?
+  (when (or (not fontsloth-cache--initialized?) force?)
     (when-let ((pcache-files (and (file-directory-p pcache-directory)
                                   (directory-files pcache-directory))))
       (cl-loop for f in pcache-files
+               unless (gethash f *pcache-repositories*)
                when (string-prefix-p fontsloth-cache--pcache-prefix f)
                do (make-instance 'fontsloth-cache-pcache
                                  :object-name f)))
@@ -104,6 +105,13 @@ A nil value or zero indicates to save immediately."
      (or fontsloth-cache-idle-save-time 0) nil
      (lambda ()
        (pcache-save cache t)))))
+
+(defun fontsloth-cache-has (file-path)
+  "Return t if cache contains a `fontsloth-font' corresponding to
+FILE-PATH, otherwise nil."
+  (when-let* ((repo-name (fontsloth-cache--pcache-path-name file-path))
+              (cache (gethash repo-name *pcache-repositories*)))
+    (pcache-has cache file-path)))
 
 (defun fontsloth-cache-get (file-path)
   "Retrieve a cached `fontsloth-font' corresponding to FILE-PATH, if any.

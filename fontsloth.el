@@ -5,7 +5,7 @@
 ;; Author: Jo Gay <jo.gay@mailfence.com>
 ;; Version: 0.18.0
 ;; Homepage: https://github.com/jollm/fontsloth
-;; Package-Requires: ((f "0.20.0") (logito "0.1") (pcache "0.5") (stream "2.2.5") (emacs "28.1"))
+;; Package-Requires: ((async "1.9.7") (f "0.20.0") (logito "0.1") (pcache "0.5") (stream "2.2.5") (emacs "28.1"))
 ;; Keywords: data, font, rasterization, ttf, otf
 
 ;; This program is free software: you can redistribute it and/or modify it
@@ -53,9 +53,12 @@
 
 ;;; Code:
 
+(require 'async)
 (require 'cl-lib)
 (require 'f)
 (require 'map)
+(require 'pcase)
+(require 'seq)
 (require 'fontsloth--common-types)
 (require 'fontsloth-cache)
 (require 'fontsloth-geometry)
@@ -203,6 +206,64 @@ cache"
     (reload (fontsloth-cache-invalidate source)
             (fontsloth--load-font-cached source font-settings))
     (t (fontsloth--load-font-cached source font-settings))))
+
+(defsubst fontsloth--async-do-reload-fn (sources font-settings force-reload?)
+  "Return a lambda to load and cache fonts in an asynchronous process.
+
+SOURCES a sequence of font sources
+FONT-SETTINGS the `fontsloth-font-settings' to use
+FORCE-RELOAD? non-nil if sources should be re-loaded and cached
+regardless of whether they are already cached"
+  (lambda ()
+    (require 'fontsloth)
+    (require 'seq)
+    (seq-map (lambda (s)
+               (when s
+                 (progn
+                   (fontsloth-load-font
+                    s
+                    :font-settings font-settings
+                    :cache (when force-reload? 'reload))
+                   (pcache-save
+                    (gethash (fontsloth-cache--pcache-path-name s)
+                             *pcache-repositories*)
+                    t)
+                   t)))
+             sources)))
+
+(cl-defun fontsloth-async-load-and-cache-fonts
+    (sources &key (font-settings (fontsloth-font-settings-create))
+             finish-func
+             force-reload?)
+  "Given a sequence of font sources SOURCES, attempt to cache and save
+each font in an asynchronous process. Returns the process or nil if no
+process is started.
+
+Optional keyword arguments:
+FONT-SETTINGS the `fontsloth-font-settings' to use
+FINISH-FUNC a function to be called when the process completes,
+expecting a sequence containing t for each source loaded.
+FORCE-RELOAD? non-nil if sources should be re-loaded and cached
+regardless of whether they are already cached"
+  (if-let ((sources (seq-remove #'null sources))
+           (sources
+            (if force-reload?
+                sources
+              (seq-remove #'fontsloth-cache-get sources))))
+      (progn
+        (message "fontsloth: loading %s font(s) asynchronously" (length sources))
+        (fontsloth:info fontsloth-log
+                        "fontsloth: attempting to load and cache:\n%s\n..."
+                        (pp-to-string sources))
+        (async-start
+         (fontsloth--async-do-reload-fn sources font-settings force-reload?)
+         (lambda (result)
+           (when (seq-remove #'null result)
+             (fontsloth-cache--load-repos t))
+           (when finish-func
+                 (apply finish-func result nil)))))
+    (when finish-func
+      (apply finish-func nil nil))))
 
 (defsubst fontsloth-font-scale-factor (font px)
   "Return a scaling factor for FONT given PX pixel size."
