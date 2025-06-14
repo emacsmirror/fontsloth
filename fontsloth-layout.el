@@ -224,13 +224,15 @@
               current-new-line)))
     (cl-loop for character across text
              for line-start? = t then nil
-             with prev-char = nil do
+             for glyph-id = (fontsloth-font-glyph-id font character)
+             with prev-char = nil
+             ;; TODO: insert a missing char indicator instead?
+             when glyph-id do
              (pcase-let*
                  ((linebreak
                    (fontsloth-layout-linebreak-data-mask
                     (fontsloth-layout-linebreak-er-next linebreaker character)
                     wrap-mask))
-                  (glyph-id (fontsloth-font-glyph-id font character))
                   (char-data
                    (fontsloth-layout-linebreak-char-data-classify
                     character glyph-id))
