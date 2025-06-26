@@ -80,9 +80,33 @@ A nil value or zero indicates to save immediately."
 (defvar fontsloth-cache--initialized? nil
   "Nil if fontsloth cache repositories are not yet loaded.")
 
+(defun fontsloth-cache--avoid-save-on-kill (orig-fun &rest args)
+  "Avoid saving fontsloth related pcache repositories when killing Emacs.
+
+The entries are read-only and saved onced on first put.  This around
+advice should preserve the existing pcache logic for all other
+repositories.
+
+ORIG-FUN ::= the function being advised
+ARGS ::= any arguments passed to that function"
+  (let ((fontsloth-repos
+         (cl-loop for k being the hash-keys of *pcache-repositories*
+                  when (string-prefix-p fontsloth-cache--pcache-prefix k)
+                  collect
+                  `(,k . ,(gethash k *pcache-repositories*))
+                  and do
+                  (remhash k *pcache-repositories*))))
+    (apply orig-fun args)
+    (cl-loop for (k . v) in fontsloth-repos
+             do
+             (puthash k v *pcache-repositories*))))
+
 (defun fontsloth-cache--load-repos (&optional force?)
-  "Load any pcache repos whose names start with `fontsloth-cache--pcache-prefix'."
+  "Load any pcache repos whose names start with `fontsloth-cache--pcache-prefix'.
+
+FORCE? if non-nil, re-load even if already initialized"
   (when (or (not fontsloth-cache--initialized?) force?)
+    (advice-add 'pcache-kill-emacs-hook :around #'fontsloth-cache--avoid-save-on-kill)
     (when-let ((pcache-files (and (file-directory-p pcache-directory)
                                   (directory-files pcache-directory))))
       (cl-loop for f in pcache-files
@@ -135,29 +159,6 @@ The value is nil if no entry is found."
   (cl-loop for k being the hash-keys of *pcache-repositories*
            when (string-prefix-p fontsloth-cache--pcache-prefix k)
            do (pcache-destroy-repository k)))
-
-(defun fontsloth-cache--avoid-save-on-kill (orig-fun &rest args)
-  "Avoid saving fontsloth related pcache repositories when killing Emacs.
-
-The entries are read-only and saved onced on first put.  This around
-advice should preserve the existing pcache logic for all other
-repositories.
-
-ORIG-FUN ::= the function being advised
-ARGS ::= any arguments passed to that function"
-  (let ((fontsloth-repos
-         (cl-loop for k being the hash-keys of *pcache-repositories*
-                  when (string-prefix-p fontsloth-cache--pcache-prefix k)
-                  collect
-                  `(,k . ,(gethash k *pcache-repositories*))
-                  and do
-                  (remhash k *pcache-repositories*))))
-    (apply orig-fun args)
-    (cl-loop for (k . v) in fontsloth-repos
-             do
-             (puthash k v *pcache-repositories*))))
-
-(advice-add 'pcache-kill-emacs-hook :around #'fontsloth-cache--avoid-save-on-kill)
 
 (provide 'fontsloth-cache)
 ;;; fontsloth-cache.el ends here
