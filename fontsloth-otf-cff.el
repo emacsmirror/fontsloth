@@ -53,7 +53,7 @@
 (require 'fontsloth-otf-)
 (require 'fontsloth-otf-cff-dict)
 
-;;; Standard encoding defined in Adobe Technical Note #5176 Appendix B
+;; Standard encoding defined in Adobe Technical Note #5176 Appendix B
 (defconst fontsloth-otf-cff--standard-encoding
   [0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
    0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0
@@ -73,9 +73,8 @@
    0 144   0   0   0 145   0   0 146 147 148 149   0   0   0   0]
   "Standard encoding defined in Adobe Technical Note #5176 Appendix B.")
 
-;;; Expert Subset Encoding conversion defined in Adobe Technical Note #5176
-;;; Appendix C.
-
+;; Expert Subset Encoding conversion defined in Adobe Technical Note #5176
+;; Appendix C.
 (defconst fontsloth-otf-cff--expert-encoding
   [0    1    229  230  231  232  233  234  235  236  237  238   13   14   15
    99   239  240  241  242  243  244  245  246  247  248   27   28  249  250
@@ -127,7 +126,7 @@ Defined in Adobe Technical Note #5176 Appendix C.")
 (defconst fontsloth-otf-cff-flex1 37)
 (defconst fontsloth-otf-cff-fixed-16-16 255)
 
-;;; top dict operators Adobe Technical Note #5176
+;; top dict operators Adobe Technical Note #5176
 (defconst fontsloth-otf-cff-top-dict-charset-offset 15)
 (defconst fontsloth-otf-cff-top-dict-char-strings-offset 17)
 (defconst fontsloth-otf-cff-top-dict-private-dict-size-and-offset 18)
@@ -137,13 +136,13 @@ Defined in Adobe Technical Note #5176 Appendix C.")
 (defconst fontsloth-otf-cff2-top-dict-font-dict-index-offset 1236)
 (defconst fontsloth-otf-cff-top-dict-fd-select 1237)
 
-;;; charsets Adobe Technical Note #5176, Table 22
+;; charsets Adobe Technical Note #5176, Table 22
 (defconst fontsloth-otf-cff-charset-iso-adobe 0)
 (defconst fontsloth-otf-cff-charset-expert 1)
 (defconst fontsloth-otf-cff-charset-expert-subset 2)
 
-;;; Enumerates some operators defined in the Adobe Technical Note #5176, Table
-;;; 23 Private DICT Operators
+;; Enumerates some operators defined in the Adobe Technical Note #5176, Table
+;; 23 Private DICT Operators
 (defconst fontsloth-otf-cff-private-dict-local-subrs-offset 19)
 
 (cl-defun fontsloth-otf-cff-charset-sid->gid (charset sid)

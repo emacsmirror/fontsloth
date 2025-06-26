@@ -814,7 +814,13 @@ Y y coord of curve end"
                      x1 y1 x y))
 
 (cl-defgeneric fontsloth-otf-curve-to (outliner x1 y1 x2 y2 x y)
-  "Append a curve-to segment to OUTLINER's contour."
+  "Append a curve-to segment to OUTLINER's contour.
+X1 x coord of control point
+Y1 y coord of control point
+X2 x coord of control point
+Y2 y coord of control point
+X x coord of curve end
+Y y coord of curve end"
   (ignore outliner)
   (fontsloth:verbose fontsloth-log "Noop outline curve-to %s %s %s %s %s %s"
                      x1 y1 x2 y2 x y))

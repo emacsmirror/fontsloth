@@ -1,6 +1,6 @@
 ;;; fontsloth-cache.el --- Fontsloth pcache -*- lexical-binding: t -*-
 
-;; Copyright (C) 2021 Jo Gay <jo.gay@mailfence.com>
+;; Copyright (C) 2025 Jo Gay <jo.gay@mailfence.com>
 
 ;; Author: Jo Gay <jo.gay@mailfence.com>
 ;; Version: 0.19.1
@@ -107,8 +107,7 @@ A nil value or zero indicates to save immediately."
        (pcache-save cache t)))))
 
 (defun fontsloth-cache-has (file-path)
-  "Return t if cache contains a `fontsloth-font' corresponding to
-FILE-PATH, otherwise nil."
+  "Return non-nil if cache has a `fontsloth-font' corresponding to FILE-PATH."
   (when-let* ((repo-name (fontsloth-cache--pcache-path-name file-path))
               (cache (gethash repo-name *pcache-repositories*)))
     (pcache-has cache file-path)))
@@ -140,7 +139,7 @@ The value is nil if no entry is found."
 (defun fontsloth-cache--avoid-save-on-kill (orig-fun &rest args)
   "Avoid saving fontsloth related pcache repositories when killing Emacs.
 
-The entries are read-only and saved onced on first put. This around
+The entries are read-only and saved onced on first put.  This around
 advice should preserve the existing pcache logic for all other
 repositories.
 

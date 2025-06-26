@@ -80,6 +80,7 @@
   (params nil :type 'fontsloth-params))
 
 (defun fontsloth-line--create (start end)
+  "Create a `fontsloth-line' with START and END."
   (let* ((floor-nudge 0) (ceil-nudge 0.0000000000001))
     (let ((x-start-nudge) (x-first-adj) (y-start-nudge) (y-first-adj)
           (x-end-nudge) (y-end-nudge))
