@@ -1,6 +1,6 @@
 ;;; fontsloth-test.el --- Fontsloth tests -*- lexical-binding: t -*-
 
-;; Copyright (C) 2021 Jo Gay <jo.gay@mailfence.com>
+;; Copyright (C) 2025 Jo Gay <jo.gay@mailfence.com>
 
 ;; Author: Jo Gay <jo.gay@mailfence.com>
 ;; Version: 0.19.1
@@ -46,24 +46,19 @@
 (require 'ert)
 (require 'f)
 (require 'fontsloth)
+(require 'fontsloth-test-util)
 
-;;; TODO: don't hardcode this location
-(defvar fontsloth-test--font "/usr/share/fonts/TTF/fontawesome.ttf")
+(defvar fontsloth-test--font (fontsloth-test--find-font-path '("DejaVu Sans")))
+(defvar fontsloth-test--glyph-id 315) ; should correspond to ?Ź
+
 (defvar fontsloth-test--expected-pixmap
-  [0 0 0 0 29 81 105 101 69 14 0 0 0 0 0 1
-     91 204 255 255 255 255 255 250 175 53 0 0
-     22 192 255 248 169 105 77 82 119 195 255 254
-     140 3 132 255 172 42 109 181 214 208 164 80
-     61 214 254 61 3 75 75 234 255 254 226 231 255
-     255 203 44 67 0 0 0 156 243 123 39 65 56 43
-     165 253 85 0 0 0 0 2 28 145 250 255 255 235
-     90 33 0 0 0 0 0 0 0 164 211 123 139 234 95 0
-     0 0 0 0 0 0 0 1 25 164 134 4 0 0 0 0 0 0 0 0
-     0 0 3 159 99 0 0 0 0 0 0])
+  [0 0 0 0 29 7 0 0 0 0 0 71 181 4 0 0 0 0 0 84 13 0 0 0 62 191 191 191 191 191
+   191 104 20 63 63 63 63 109 252 68 0 0 0 0 18 221 117 0 0 0 0 3 187 166 0 0 0
+   0 0 142 206 9 0 0 0 0 93 234 30 0 0 0 0 52 242 63 0 0 0 0 23 227 108 0 0 0 0
+   0 116 255 254 254 254 254 254 173])
 
-    ;;; don't change the current state of the cache
-
-(defvar fontsloth-test--post-invalidate? nil)
+(defvar fontsloth-test--post-invalidate? nil
+  "For use in fixtures to ensure the current state of cache is left unchanged.")
 
 ;; e.g. emacs -batch -l ert -l <test-file> --eval
 ;; "(ert-run-tests-batch-and-exit fontsloth-test--order)"
@@ -91,9 +86,10 @@
      (pcase-let* ((font (fontsloth-load-font fontsloth-test--font
                                              :cache 'reload))
                   ((cl-struct fontsloth-metrics+pixmap metrics pixmap)
-                   (fontsloth-font-rasterize font 477 12.0)))
-       (should (eq (fontsloth-metrics-width metrics) 14))
-       (should (eq (fontsloth-metrics-height metrics) 10))
+                   (fontsloth-font-rasterize
+                    font fontsloth-test--glyph-id 12.0)))
+       (should (eq (fontsloth-metrics-width metrics) 8))
+       (should (eq (fontsloth-metrics-height metrics) 12))
        (should (equal pixmap fontsloth-test--expected-pixmap))))))
 
 (ert-deftest fontsloth-test-font-pcache-rasterize ()
@@ -103,9 +99,10 @@
      (skip-unless (f-exists-p fontsloth-test--font))
      (pcase-let* ((font (fontsloth-load-font fontsloth-test--font))
                   ((cl-struct fontsloth-metrics+pixmap metrics pixmap)
-                   (fontsloth-font-rasterize font 477 12.0)))
-       (should (eq (fontsloth-metrics-width metrics) 14))
-       (should (eq (fontsloth-metrics-height metrics) 10))
+                   (fontsloth-font-rasterize
+                    font fontsloth-test--glyph-id 12.0)))
+       (should (eq (fontsloth-metrics-width metrics) 8))
+       (should (eq (fontsloth-metrics-height metrics) 12))
        (should (equal pixmap fontsloth-test--expected-pixmap))))))
 
 (provide 'fontsloth-test)
