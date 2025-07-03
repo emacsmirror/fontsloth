@@ -99,6 +99,76 @@ To be handed to `fontsloth-otf-outline-glyph'"
   (ct nil :type 'number
       :documentation "the end point's position in the curve"))
 
+(defvar fontsloth-seg-stack--size 128
+  "Initial size for `fontsloth-seg-stack-pool'.")
+
+(cl-defstruct
+    (fontsloth-seg-stack
+     (:constructor fontsloth-seg-stack-create)
+     (:copier nil))
+  "Holds state for a stack of `fontsloth-segment'."
+  (idx -1 :type 'integer :documentation "current push index")
+  (pop-ptr -1 :type 'integer :documentation "current pop pointer")
+  (pops (make-hash-table :size (+ fontsloth-seg-stack--size
+                                  fontsloth-seg-stack--size))
+        :type 'hash-table :documentation "tracks pops")
+  (pool nil :type 'vector :documentation "pool of objects"))
+
+(defsubst fontsloth-seg-stack--reset (stack)
+  "Reset STACK."
+  (setf (fontsloth-seg-stack-idx stack) -1
+        (fontsloth-seg-stack-pop-ptr stack) -1))
+
+(defun fontsloth-seg-stack--grow (stack)
+  "Grow STACK."
+  (let* ((old-length (length (fontsloth-seg-stack-pool stack)))
+         (new-length (+ old-length old-length old-length))
+         (new-pool (make-vector new-length nil)))
+      (fontsloth:info*
+       fontsloth-log "Fontsloth-geometry: resizing segment stack from %s to %s"
+       old-length new-length)
+      (cl-loop for i from 0 below new-length
+               if (< i old-length) do
+               (aset new-pool i (aref (fontsloth-seg-stack-pool stack) i))
+               else do
+               (aset new-pool i (fontsloth-segment-create))
+               finally (setf (fontsloth-seg-stack-pool stack) new-pool))))
+
+(defun fontsloth-seg-stack--push (a at c ct stack)
+  "Push `fontsloth-segment' components A, AT, C, CT onto STACK."
+  (unless (fontsloth-seg-stack-pool stack)
+    (cl-loop for i from 0 below fontsloth-seg-stack--size
+             with res = (make-vector fontsloth-seg-stack--size nil)
+             do (aset res i (fontsloth-segment-create))
+             finally do (setf (fontsloth-seg-stack-pool stack) res)))
+  (cl-incf (fontsloth-seg-stack-idx stack))
+  (puthash (fontsloth-seg-stack-idx stack)
+           (fontsloth-seg-stack-pop-ptr stack)
+           (fontsloth-seg-stack-pops stack))
+  (setf (fontsloth-seg-stack-pop-ptr stack) (fontsloth-seg-stack-idx stack))
+  (when (>= (fontsloth-seg-stack-idx stack) (length (fontsloth-seg-stack-pool stack)))
+    (fontsloth-seg-stack--grow stack))
+  (let ((seg (aref (fontsloth-seg-stack-pool stack)
+                   (fontsloth-seg-stack-idx stack))))
+    (aset seg 1 a)
+    (aset seg 2 at)
+    (aset seg 3 c)
+    (aset seg 4 ct)))
+
+(defun fontsloth-seg-stack--pop (stack)
+  "Pop a `fontsloth-segment' from STACK or nil if STACK is empty."
+  (when (<= 0 (fontsloth-seg-stack-pop-ptr stack))
+    (prog1
+        (aref (fontsloth-seg-stack-pool stack)
+              (fontsloth-seg-stack-pop-ptr stack))
+      (setf (fontsloth-seg-stack-pop-ptr stack)
+            (gethash (fontsloth-seg-stack-pop-ptr stack)
+                     (fontsloth-seg-stack-pops stack))))))
+
+(defvar fontsloth-geom--seg-stack (fontsloth-seg-stack-create)
+  "A stack with a fixed pool of `fontsloth-segment' objects.
+Objects are re-used during curve-to and quad-to.")
+
 (cl-defstruct
     (fontsloth-glyph-outline-bounds
      (:constructor fontsloth-glyph-outline-bounds-create)
@@ -261,10 +331,13 @@ Y1 y coord of the next curve point"
                  :a (fontsloth-geometry-previous-point outliner)
                  :b control-point
                  :c next-point))
-         (stack `(,(fontsloth-segment-create
-                    :a (fontsloth-geometry-previous-point outliner) :at 0.0
-                    :c next-point :ct 1.0))))
-    (cl-loop for seg = (pop stack) then (pop stack)
+         (stack fontsloth-geom--seg-stack))
+    (cl-loop for seg = (fontsloth-seg-stack--pop stack)
+             initially do
+             (fontsloth-seg-stack--reset stack)
+             (fontsloth-seg-stack--push
+              (fontsloth-geometry-previous-point outliner) 0.0 next-point 1.0
+              stack)
              while seg do
              (let* ((bt (* 0.5 (+ (fontsloth-segment-at seg)
                                   (fontsloth-segment-ct seg))))
@@ -282,16 +355,18 @@ Y1 y coord of the next curve point"
                                    (fontsloth-point-y
                                     (fontsloth-segment-a seg)))))))
                (if (> (abs area) (fontsloth-geometry-max-area outliner))
-                   (progn (push (fontsloth-segment-create
-                                 :a (fontsloth-segment-a seg)
-                                 :at (fontsloth-segment-at seg)
-                                 :c b
-                                 :ct bt) stack)
-                          (push (fontsloth-segment-create
-                                 :a b
-                                 :at bt
-                                 :c (fontsloth-segment-c seg)
-                                 :ct (fontsloth-segment-ct seg)) stack))
+                   (progn (fontsloth-seg-stack--push
+                           (fontsloth-segment-a seg)
+                           (fontsloth-segment-at seg)
+                           b
+                           bt
+                           stack)
+                          (fontsloth-seg-stack--push
+                           b
+                           bt
+                           (fontsloth-segment-c seg)
+                           (fontsloth-segment-ct seg)
+                           stack))
                  (fontsloth-geometry-push
                   outliner
                   (fontsloth-segment-a seg)
@@ -316,10 +391,13 @@ Y2 y coord of the next curve point"
                  :b first-control
                  :c second-control
                  :d next-point))
-         (stack `(,(fontsloth-segment-create
-                    :a (fontsloth-geometry-previous-point outliner) :at 0.0
-                    :c next-point :ct 1.0))))
-    (cl-loop for seg = (pop stack) then (pop stack)
+         (stack fontsloth-geom--seg-stack))
+    (cl-loop for seg = (fontsloth-seg-stack--pop stack)
+             initially do
+             (fontsloth-seg-stack--reset stack)
+             (fontsloth-seg-stack--push
+              (fontsloth-geometry-previous-point outliner) 0.0 next-point 1.0
+              stack)
              while seg do
              (let* ((bt (* 0.5 (+ (fontsloth-segment-at seg)
                                   (fontsloth-segment-ct seg))))
@@ -337,16 +415,18 @@ Y2 y coord of the next curve point"
                                    (fontsloth-point-y
                                     (fontsloth-segment-a seg)))))))
                (if (> (abs area) (fontsloth-geometry-max-area outliner))
-                   (progn (push (fontsloth-segment-create
-                                 :a (fontsloth-segment-a seg)
-                                 :at (fontsloth-segment-at seg)
-                                 :c b
-                                 :ct bt) stack)
-                          (push (fontsloth-segment-create
-                                 :a b
-                                 :at bt
-                                 :c (fontsloth-segment-c seg)
-                                 :ct (fontsloth-segment-ct seg)) stack))
+                   (progn (fontsloth-seg-stack--push
+                           (fontsloth-segment-a seg)
+                           (fontsloth-segment-at seg)
+                           b
+                           bt
+                           stack)
+                          (fontsloth-seg-stack--push
+                           b
+                           bt
+                           (fontsloth-segment-c seg)
+                           (fontsloth-segment-ct seg)
+                           stack))
                  (fontsloth-geometry-push
                   outliner
                   (fontsloth-segment-a seg)
