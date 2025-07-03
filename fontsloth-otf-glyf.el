@@ -254,11 +254,12 @@ BUILDER a `fontsloth-otf-glyf-builder'"
                    (x-coords (alist-get 'x-coords glyph-data))
                    (y-coords (alist-get 'y-coords glyph-data)))
           (dotimes (i num-points)
-            (let ((flags (car (elt flags i))))
-              (fontsloth-otf-glyf-push-point builder
-                                             (elt x-coords i) (elt y-coords i)
-                                             (alist-get 'on-curve-point flags)
-                                             (map-elt end-pts i))))
+            (let ((flags (elt flags i)))
+              (fontsloth-otf-glyf-push-point
+               builder
+               (elt x-coords i) (elt y-coords i)
+               (fontsloth-otf--simple-glyf-flag 'on-curve-point flags)
+               (map-elt end-pts i))))
           (fontsloth-otf-glyf-builder-bbox builder))
       (let ((comps
              (cons glyph-data

@@ -249,21 +249,27 @@ GLYPH-LOCATIONS sequence of glyph locations from the loca table"
                   (elt glyph-locations index))))
     (unless (>= 0 range) range)))
 
-(defvar fontsloth-otf--simple-glyf-flag-spec
-  (bindat-type
-    :pack-var f
-    (byte uint 8 :pack-val f)           ; TODO pack properly
-    :unpack-val
-    `((on-curve-point . ,(= 1 (logand 1 byte)))
-      (x-short-vector . ,(= 2 (logand 2 byte)))
-      (y-short-vector . ,(= 4 (logand 4 byte)))
-      (repeat . ,(= 8 (logand 8 byte)))
-      (x-is-same-or-pos-x-short-vec
-       . ,(= 16 (logand 16 byte)))
-      (y-is-same-or-pos-y-short-vec
-       . ,(= 32 (logand 32 byte)))
-      (overlap-simple . ,(= 64 (logand 64 byte)))
-      (reserved . ,(= 128 (logand 128 byte))))))
+(defun fontsloth-otf--simple-glyf-flag (sym byte)
+  "Return flag in BYTE matching SYM.
+
+SYM ::= one of
+  on-curve-point
+  x-short-vector
+  y-short-vector
+  repeat
+  x-is-same-or-pos-x-short-vec
+  y-is-same-or-pos-y-short-vec
+  overlap-simple
+  reserved"
+  (cl-case sym
+    (on-curve-point (eq 1 (logand 1 byte)))
+    (x-short-vector (eq 2 (logand 2 byte)))
+    (y-short-vector (eq 4 (logand 4 byte)))
+    (repeat (eq 8 (logand 8 byte)))
+    (x-is-same-or-pos-x-short-vec (eq 16 (logand 16 byte)))
+    (y-is-same-or-pos-y-short-vec (eq 32 (logand 32 byte)))
+    (overlap-simple (eq 64 (logand 64 byte)))
+    (reserved (eq 128 (logand 128 byte)))))
 
 ;; TODO compute-x and compute-y could be done with a macro or wrapper fn
 
@@ -272,84 +278,70 @@ GLYPH-LOCATIONS sequence of glyph locations from the loca table"
   (if (= 0 idx) 0
     (elt prev (1- idx))))
 
-(defun fontsloth-otf--compute-x-type-from-flag (flag idx prev-x)
-  "Given the point flags at point `idx', make a bindat type for the x coord.
-FLAG the point flags for point at `idx'
-IDX the point index
-PREV-X sequence of previous x coords"
-  (let* ((x-short-vector (alist-get 'x-short-vector flag))
-         (x-is-same-or-pos-x-short-vec
-          (alist-get 'x-is-same-or-pos-x-short-vec flag)))
-    (let ((x-type
-           (if x-short-vector
-               (if x-is-same-or-pos-x-short-vec
-                   (bindat-type u8)
-                 (bindat-type :pack-var v (b u8 :pack-val (* -1 v))
-                              :unpack-val (* -1 b)))
-             (if x-is-same-or-pos-x-short-vec
-                 (bindat-type unit 0)
-               (bindat-type sint 16 nil)))))
-      (bindat-type :pack-var v
-                   (dx type x-type
-                       :pack-val (- v (fontsloth-otf--prev-coord prev-x idx)))
-                   :unpack-val (+ dx (fontsloth-otf--prev-coord prev-x idx))))))
+;; TODO: determine how to make bindat vec with dynamically determined
+;; types efficient
+(defun fontsloth-otf--make-simple-glyf-flags-vec (num-points)
+  "Make a simple glyf flags vector with NUM-POINTS flags."
+  (cl-loop for i from 0 below num-points
+           with flag-repeat-counter = 0
+           with flag-to-repeat = nil
+           with res = (make-vector num-points 0)
+           do (if (>= 0 flag-repeat-counter)
+                  (let* ((flag (bindat--unpack-u8))
+                         (repeat (when (fontsloth-otf--simple-glyf-flag 'repeat flag)
+                                   (bindat--unpack-u8))))
+                    (when repeat
+                      (setf flag-repeat-counter repeat
+                            flag-to-repeat flag))
+                    (aset res i flag))
+                (aset res i flag-to-repeat)
+                (cl-decf flag-repeat-counter))
+           finally return res))
 
-(defun fontsloth-otf--compute-y-type-from-flag (flag idx prev-y)
-  "Given the point flags at point `idx', make a bindat type for the y coord.
-FLAG the point flags for point at `idx'
-IDX the point index
-PREV-Y sequence of previous y coords"
-  (let ((y-short-vector (alist-get 'y-short-vector flag))
-        (y-is-same-or-pos-y-short-vec
-         (alist-get 'y-is-same-or-pos-y-short-vec flag)))
-    (let ((y-type
-           (if y-short-vector
-               (if y-is-same-or-pos-y-short-vec
-                   (bindat-type u8)
-                 (bindat-type :pack-var v (b u8 :pack-val (* -1 v))
-                              :unpack-val (* -1 b)))
-             (if y-is-same-or-pos-y-short-vec
-                 (bindat-type unit 0)
-               (bindat-type sint 16 nil)))))
-      (bindat-type :pack-var v
-                   (dy type y-type
-                       :pack-val (- v (fontsloth-otf--prev-coord prev-y idx)))
-                   :unpack-val (+ dy (fontsloth-otf--prev-coord prev-y idx))))))
+;; TODO: determine how to make bindat vec with dynamically determined
+;; types efficient
+(defun fontsloth-otf--make-simple-glyf-coords-vec
+    (flags num-points short-vec is-same)
+  "Given FLAGS, make a simple glyf coords vector with NUM-POINTS coords.
+
+SHORT-VEC ::= the flag to check for short-vector
+IS-SAME ::= the flag to check for is-same-or-pos-short-vec"
+  (cl-loop for i from 0 below num-points
+           for flag = (elt flags i)
+           for short-vector = (fontsloth-otf--simple-glyf-flag short-vec flag)
+           for is-same-or-pos-short-vec = (fontsloth-otf--simple-glyf-flag
+                                           is-same flag)
+           for dx = (if short-vector
+                        (if is-same-or-pos-short-vec
+                            (bindat--unpack-u8)
+                          (- (bindat--unpack-u8)))
+                      (if is-same-or-pos-short-vec
+                          0
+                        (let ((n (bindat--unpack-u16))
+                              (max (ash 1 (1- 16))))
+                          (if (>= n max) (- n (+ max max)) n))))
+           with res = (make-vector num-points 0)
+           do (aset res i (+ dx (fontsloth-otf--prev-coord res i)))
+           finally return res))
 
 (defun fontsloth-otf--make-simple-glyf-data-spec (num-contours range)
   "Given number of contours make a bindat spec to parse simple glyph data.
 NUM-CONTOURS number of contours for the glyph, positive for simple data
 RANGE length in bytes from loca for data, excluding header size"
-  (let ((flag-repeat-counter) (flag-to-repeat) (fill-to))
+  (let ((fill-to))
     (bindat-type
-      (_ unit (progn (setf flag-repeat-counter 0
-                           flag-to-repeat nil
-                           fill-to (+ bindat-idx range)) nil))
+      (_ unit (progn (setf fill-to (+ bindat-idx range)) nil))
       (end-pts vec num-contours uint 16)
       (instruction-length uint 16)
       (instructions vec instruction-length uint 8)
       (num-points unit (1+ (elt end-pts (1- num-contours))))
-      (flags vec num-points type
-             (if (< 0 flag-repeat-counter)
-                 (bindat-type
-                   (flag unit flag-to-repeat)
-                   (_ unit (progn (cl-decf flag-repeat-counter) nil)))
-               (bindat-type
-                 (flag type fontsloth-otf--simple-glyf-flag-spec)
-                 (repeat type (if (alist-get 'repeat flag)
-                                  (bindat-type uint 8)
-                                (bindat-type unit nil)))
-                 (_ unit (when repeat
-                           (setf flag-repeat-counter repeat
-                                 flag-to-repeat flag) nil)))))
-      (x-coords vec num-points type
-                (fontsloth-otf--compute-x-type-from-flag
-                 (car (elt flags bindat--i))
-                 bindat--i bindat--v))
-      (y-coords vec num-points type
-                (fontsloth-otf--compute-y-type-from-flag
-                 (car (elt flags bindat--i))
-                 bindat--i bindat--v))
+      (flags unit (fontsloth-otf--make-simple-glyf-flags-vec num-points))
+      (x-coords unit (fontsloth-otf--make-simple-glyf-coords-vec
+                      flags num-points
+                      'x-short-vector 'x-is-same-or-pos-x-short-vec))
+      (y-coords unit (fontsloth-otf--make-simple-glyf-coords-vec
+                      flags num-points
+                      'y-short-vector 'y-is-same-or-pos-y-short-vec))
       (_ fill (- fill-to bindat-idx)))))
 
 (defvar fontsloth-otf--component-flag-spec
