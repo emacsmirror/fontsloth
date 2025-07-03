@@ -63,7 +63,8 @@
 ;; e.g. emacs -batch -l ert -l <test-file> --eval
 ;; "(ert-run-tests-batch-and-exit fontsloth-test--order)"
 (defvar fontsloth-test--order '(member fontsloth-test-font-load-rasterize
-                                       fontsloth-test-font-pcache-rasterize))
+                                       fontsloth-test-font-pcache-rasterize
+                                       fontsloth-test-font-code-point-diff))
 
 (defun fontsloth-test--pre-fixture (body)
   "A fixture to run before BODY."
@@ -104,6 +105,40 @@
        (should (eq (fontsloth-metrics-width metrics) 8))
        (should (eq (fontsloth-metrics-height metrics) 12))
        (should (equal pixmap fontsloth-test--expected-pixmap))))))
+
+(ert-deftest fontsloth-test-font-code-point-diff ()
+  "Test `fontsloth-font-code-point-diff'."
+  ;; nothing in b
+  (should (null (fontsloth-font-code-point-diff '((12 35)) nil)))
+
+  ;; nothing in a
+  (should (equal (fontsloth-font-code-point-diff nil '((12 35)))
+                 '((12 35))))
+
+  ;; start of first b past the end of first a
+  (should (equal (fontsloth-font-code-point-diff '((1 13) (35 78)) '((13 35)))
+                 '((13 35))))
+
+  ;; end of first b less than start of first a
+  (should (equal (fontsloth-font-code-point-diff '((49 91)) '((12 35) (36 39)))
+                 '((12 35) (36 39))))
+
+  ;; end of b less than or equal to end of a and start of b less than that of a
+  (should (equal (fontsloth-font-code-point-diff '((12 35)) '((1 33) (34 35)))
+                 '((1 12))))
+
+  ;; start of b less than start of a
+  (should (equal (fontsloth-font-code-point-diff '((12 35)) '((1 36)))
+                 '((1 12) (35 36))))
+
+  ;; start of b greater than or equal to that of a and end of b greater than a
+  (should (equal (fontsloth-font-code-point-diff '((1 13) (14 29)) '((12 35)))
+                 '((13 14) (29 35))))
+
+  ;; b is inside a
+  (should (equal (fontsloth-font-code-point-diff
+                  '((35 78) (79 82)) '((36 77) (78 344)))
+                 '((78 79) (82 344)))))
 
 (provide 'fontsloth-test)
 ;;; fontsloth-test.el ends here

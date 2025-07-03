@@ -287,6 +287,55 @@ FONT a `fontsloth-font'
 CODE-POINT the character code point to map"
   (map-elt (fontsloth-font-char-to-glyph font) code-point))
 
+(defsubst fontsloth-font-code-points (font)
+  "Return ascendingly sorted code points covered by FONT."
+  (cl-remove-if (lambda (c) (eq 0 (fontsloth-font-glyph-id font c)))
+                (sort (map-keys (fontsloth-font-char-to-glyph font)))))
+
+(defun fontsloth-font-code-point-ranges (font)
+  "Return code points covered by FONT as an ascendingly sorted set of ranges.
+
+The result is a sequence of pairs where each pair represents a code
+point range starting from the first element up to but not including the
+second element."
+  (cl-loop for (a b) on (fontsloth-font-code-points font)
+           for res = `((,a)) then res do
+           (unless (eq (1+ a) b)
+             (setcdr (car res) `(,(1+ a)))
+             (when b
+               (push `(,b) res)))
+           finally return (nreverse res)))
+
+(defun fontsloth-font-code-point-diff (a b)
+  "Return code point ranges which are covered by font B and not by font A.
+
+See `fontsloth-font-code-point-ranges' to get code point ranges for a font."
+  (cl-labels ((recur (a b diff)
+                (cond ((null a) (append (nreverse diff) b))
+                      ((null b) (nreverse diff))
+                      ((>= (caar b) (cadar a))
+                       (recur (cdr a) b diff))
+                      ((< (cadar b) (caar a))
+                       (recur a (cdr b) (cons (car b) diff)))
+                      ((and (<= (cadar b) (cadar a))
+                            (< (caar b) (caar a)))
+                       (recur (cons `(,(cadar b) ,(cadar a)) (cdr a))
+                              (cdr b)
+                              (cons `(,(caar b) ,(caar a)) diff)))
+                      ((< (caar b) (caar a))
+                       (recur (cdr a)
+                              (cons `(,(cadar a) ,(cadar b)) (cdr b))
+                              (cons `(,(caar b) ,(caar a)) diff)))
+                      ((and (>= (caar b) (caar a))
+                            (> (cadar b) (cadar a)))
+                       (recur (cdr a)
+                              (cons `(,(cadar a) ,(cadar b)) (cdr b))
+                              diff))
+                      (t (recur (cons `(,(1+ (cadar b)) ,(cadar a)) (cdr a))
+                                (cdr b)
+                                diff)))))
+    (recur a b nil)))
+
 (defun fontsloth-font-horizontal-kern-by-id (font left right px)
   "Return FONT's horizontal kern value for LEFT/RIGHT scaled to PX or 0."
   (let ((scale (fontsloth-font-scale-factor font px)))
