@@ -46,6 +46,8 @@
 (require 'cl-lib)
 (require 'seq)
 
+(declare-function font-info "font.c" (name &optional frame))
+
 (cl-defsubst fontsloth-test--find-font-path (font-name-list)
   "Return a path to the first found in FONT-NAME-LIST or nil if none."
   (seq-some (lambda (v) (when v v))
