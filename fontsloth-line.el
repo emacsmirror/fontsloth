@@ -79,41 +79,37 @@
   (adjustment nil :type 'fontsloth-adj)
   (params nil :type 'fontsloth-params))
 
-(defun fontsloth-line--create-adj (start end &optional line)
-  "Create a `fontsloth-line' with START and END.
-With optional LINE, adjust LINE to match start and end."
+(defun fontsloth-line--create-adj (x0 y0 x1 y1 &optional line)
+  "Create a `fontsloth-line' with START, X0,Y0, and X1,Y1.
+With optional LINE, adjust LINE to match start and end points."
   (let* ((floor-nudge 0) (ceil-nudge 0.0000000000001))
     (let ((x-start-nudge) (x-first-adj) (y-start-nudge) (y-first-adj)
           (x-end-nudge) (y-end-nudge))
-      (if (>= (fontsloth-point-x end) (fontsloth-point-x start))
+      (if (>= x1 x0)
           (setq x-start-nudge floor-nudge
                 x-first-adj 1.0)
         (setq x-start-nudge ceil-nudge
               x-first-adj 0.0))
-      (if (>= (fontsloth-point-y end) (fontsloth-point-y start))
+      (if (>= y1 y0)
           (setq y-start-nudge floor-nudge
                 y-first-adj 1.0)
         (setq y-start-nudge ceil-nudge
               y-first-adj 0.0))
-      (if (> (fontsloth-point-x end) (fontsloth-point-x start))
+      (if (> x1 x0)
           (setq x-end-nudge ceil-nudge)
         (setq x-end-nudge floor-nudge))
-      (if (> (fontsloth-point-y end) (fontsloth-point-y start))
+      (if (> y1 y0)
           (setq y-end-nudge ceil-nudge)
         (setq y-end-nudge floor-nudge))
-      (let* ((dx (- (fontsloth-point-x end) (fontsloth-point-x start)))
-             (dy (- (fontsloth-point-y end) (fontsloth-point-y start)))
+      (let* ((dx (- x1 x0))
+             (dy (- y1 y0))
              (tdx (if (eql 0.0 dx) cl-most-positive-float (/ 1.0 dx)))
              (tdy (/ 1.0 dy)))
         (if line
-            (setf (fontsloth-coords-x0 (fontsloth-line-coords line))
-                  (fontsloth-point-x start)
-                  (fontsloth-coords-y0 (fontsloth-line-coords line))
-                  (fontsloth-point-y start)
-                  (fontsloth-coords-x1 (fontsloth-line-coords line))
-                  (fontsloth-point-x end)
-                  (fontsloth-coords-y1 (fontsloth-line-coords line))
-                  (fontsloth-point-y end)
+            (setf (fontsloth-coords-x0 (fontsloth-line-coords line)) x0
+                  (fontsloth-coords-y0 (fontsloth-line-coords line)) y0
+                  (fontsloth-coords-x1 (fontsloth-line-coords line)) x1
+                  (fontsloth-coords-y1 (fontsloth-line-coords line)) y1
 
                   (fontsloth-nudge-start-x-nudge (fontsloth-line-nudge line))
                   x-start-nudge
@@ -134,9 +130,7 @@ With optional LINE, adjust LINE to match start and end."
                   (fontsloth-params-dx (fontsloth-line-params line)) dx
                   (fontsloth-params-dy (fontsloth-line-params line)) dy)
           (record 'fontsloth-line
-                  (fontsloth-coords-create
-                   :x0 (fontsloth-point-x start) :y0 (fontsloth-point-y start)
-                   :x1 (fontsloth-point-x end) :y1 (fontsloth-point-y end))
+                  (fontsloth-coords-create :x0 x0 :y0 y0 :x1 x1 :y1 y1)
                   (fontsloth-nudge-create :start-x-nudge x-start-nudge
                                           :start-y-nudge y-start-nudge
                                           :end-x-nudge x-end-nudge
@@ -149,7 +143,10 @@ With optional LINE, adjust LINE to match start and end."
   "Construct a new line from `start' point and `end' point.
 START the start point of type `fontsloth-point'
 END the end point of type `fontsloth-point'"
-  (fontsloth-line--create-adj start end))
+  (fontsloth-line--create-adj (fontsloth-point-x start)
+                              (fontsloth-point-y start)
+                              (fontsloth-point-x end)
+                              (fontsloth-point-y end)))
 
 (defun fontsloth-line-reposition (line bounds reverse)
   "Reposition LINE given BOUNDS and REVERSE."
@@ -162,8 +159,7 @@ END the end point of type `fontsloth-point'"
          (x1 (- (fontsloth-coords-x1 coords) (fontsloth-bbox-xmin bounds)))
          (y1 (abs (- (fontsloth-coords-y1 coords)
                      (fontsloth-bbox-ymax bounds)))))
-    (fontsloth-line--create-adj
-     (fontsloth-point-create :x x0 :y y0) (fontsloth-point-create :x x1 :y y1) line)
+    (fontsloth-line--create-adj x0 y0 x1 y1 line)
     line))
 
 (provide 'fontsloth-line)
