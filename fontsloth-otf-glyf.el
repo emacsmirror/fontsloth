@@ -238,6 +238,8 @@ BUILDER a `fontsloth-otf-glyf-builder'"
         (fontsloth-otf-glyf-builder-last-off-curve builder) nil)
   (fontsloth-otf-close-contour (fontsloth-otf-glyf-builder-outliner builder)))
 
+(declare-function fontsloth-otf--simple-glyf-flag "fontsloth-otf" (sym byte))
+
 (defun fontsloth-otf-glyf--outline (glyphs glyph-id builder)
   "Outline glyf table GLYPH-ID in GLYPHS using BUILDER."
   (when-let* ((glyph (elt glyphs glyph-id))
