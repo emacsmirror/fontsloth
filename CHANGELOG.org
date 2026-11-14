@@ -1,6 +1,40 @@
 #+TITLE: Changelog
 #+OPTIONS: toc:nil ^:{}
 
+* 0.21.1
+
+** Added
+
+- Per-source `fontsloth-font-settings` for
+  `fontsloth-async-load-and-cache-fonts`.  Sources may be paths or
+  `(PATH . FONT-SETTINGS)` conses.  Paths use the call's default settings.
+- An async integration test covering mixed sources and a TTC collection
+  index.
+- A regression test for GPOS scripts with no default language system.
+
+** Changed
+
+- `fontsloth-cache--load-repos` accepts a path/collection-index filter.
+- Cache `put`, `get`, `invalidate`, and `has` load only their target
+  repository instead of scanning the whole cache.  Partial loads do not
+  mark the full cache as initialized.
+- The async cache callback reloads only the repositories for the fonts
+  that were requested.
+- Async source normalization and deduplication happen after per-source
+  settings are applied.
+- WOFF-dependent tests and fixtures are skipped when Emacs lacks zlib,
+  allowing the suite to run under `emacs-minimal`.
+
+** Fixed
+
+- Compressed WOFF loading checks whether `zlib-available-p` exists before
+  calling it, and reports a clear error when zlib support is absent.
+- GPOS script lists no longer treat a zero `defaultLangSysOffset` as an
+  offset.  Fonts such as PublicSans with scripts lacking a default
+  language system now load successfully.
+- Async loading accepts string sources as well as per-source settings
+  conses, and falls back to the default settings for a nil cons value.
+
 * 0.21.0
 
 ** Added
@@ -25,10 +59,10 @@
 
 ** Changed
 
-- Lazy outlining is the default; fully outlined glyphs are optional.
+- Lazy outlining is the default.  Fully outlined glyphs are optional.
 - Cache entries for lazy fonts are compact snapshots with an empty glyph
   vector and unloaded kern map.
-- Raw font bytes and transient parser data are released after use; lazy
+- Raw font bytes and transient parser data are released after use.  Lazy
   loads reparse from the source path if needed.
 - Geometry uses a consolidated line representation, a compact segment
   stack, and fewer temporary point allocations.
